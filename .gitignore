@@ -1,0 +1,4 @@
+/.vs/*
+/MeasurementsDataAggregator/bin/*
+/MeasurementsDataAggregator/obj/*
+/packages/*
