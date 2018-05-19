@@ -1,20 +1,18 @@
-﻿using Google.Apis.Auth.OAuth2;
+﻿using System;
+using System.Linq;
 using Google.Apis.Drive.v3;
 using Google.Apis.Sheets.v4;
 using MeasurementsDataAggregator.DataProcessing;
 using MeasurementsDataAggregator.GoogleApi;
-using System;
-using System.Linq;
 
 namespace MeasurementsDataAggregator
 {
-    class Program
+    internal class Program
     {
-        // If modifying these scopes, delete your previously saved credentials
-        // at ~/.credentials/sheets.googleapis.com-dotnet-quickstart.json
-        private static readonly string ApplicationName = "Measurements Data Aggregator";
-        private static readonly string SummaryFilePrefix = "Summary";
-        private static readonly string MeasurementsFolderId = "1CxDEkbYweo0vffewWhDDCLF4uVVR6c2i";
+        private static readonly string[] AuthScopes = { DriveService.Scope.Drive, SheetsService.Scope.Spreadsheets };
+        private const string ApplicationName = "Measurements Data Aggregator";
+        private const string SummaryFilePrefix = "Summary";
+        private const string MeasurementsFolderId = "1CxDEkbYweo0vffewWhDDCLF4uVVR6c2i";
         private static readonly TimeSpan DateAssociationTreshold = TimeSpan.FromDays(5);
 
         private static readonly AuthorizationProvider AuthorizationProvider = new AuthorizationProvider();
@@ -23,13 +21,11 @@ namespace MeasurementsDataAggregator
         private static readonly SpreadsheetReader SpreadsheetReader = new SpreadsheetReader();
         private static readonly Processor Processor = new Processor(SpreadsheetReader, DateAssociationTreshold);
 
-        static void Main(string[] args)
+        private static void Main()
         {
-            UserCredential driveCredential = AuthorizationProvider.AuthorizeDrive();
-            DriveService driveService = ServiceFactory.GetDriveService(driveCredential);
-
-            UserCredential sheetCredential = AuthorizationProvider.AuthorizeSheets();
-            SheetsService sheetsService = ServiceFactory.GetSheetsService(sheetCredential);
+            var credential = AuthorizationProvider.Authorize(AuthScopes);
+            var driveService = ServiceFactory.GetDriveService(credential);
+            var sheetsService = ServiceFactory.GetSheetsService(credential);
 
             var allFiles = Repository.GetFiles(driveService, MeasurementsFolderId);
             var inputFiles = allFiles.Where(f => !f.Name.StartsWith(SummaryFilePrefix)).ToList();
