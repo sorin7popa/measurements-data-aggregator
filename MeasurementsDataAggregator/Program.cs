@@ -1,9 +1,9 @@
-﻿using System;
-using System.Linq;
-using Google.Apis.Drive.v3;
+﻿using Google.Apis.Drive.v3;
 using Google.Apis.Sheets.v4;
 using MeasurementsDataAggregator.DataProcessing;
 using MeasurementsDataAggregator.GoogleApi;
+using System;
+using System.Linq;
 
 namespace MeasurementsDataAggregator
 {
@@ -12,14 +12,14 @@ namespace MeasurementsDataAggregator
         private static readonly string[] AuthScopes = { DriveService.Scope.Drive, SheetsService.Scope.Spreadsheets };
         private const string ApplicationName = "Measurements Data Aggregator";
         private const string SummaryFilePrefix = "Summary";
-        private const string MeasurementsFolderId = "1CxDEkbYweo0vffewWhDDCLF4uVVR6c2i";
-        private static readonly TimeSpan DateAssociationTreshold = TimeSpan.FromDays(5);
+        private const string MeasurementsFolderId = "0B15Usj0yt4YOTDk3NmNpQkxMZUE";
+        private static readonly TimeSpan DateAssociationTreshold = TimeSpan.FromDays(30);
 
         private static readonly AuthorizationProvider AuthorizationProvider = new AuthorizationProvider();
         private static readonly ServiceFactory ServiceFactory = new ServiceFactory(ApplicationName);
-        private static readonly Repository Repository = new Repository(SummaryFilePrefix);
-        private static readonly SpreadsheetReader SpreadsheetReader = new SpreadsheetReader();
-        private static readonly Processor Processor = new Processor(SpreadsheetReader, DateAssociationTreshold);
+        private static readonly SpreadsheetParser SpreadsheetParser = new SpreadsheetParser();
+        private static readonly Repository Repository = new Repository(SpreadsheetParser, SummaryFilePrefix);
+        private static readonly Processor Processor = new Processor(DateAssociationTreshold);
 
         private static void Main()
         {
@@ -27,10 +27,9 @@ namespace MeasurementsDataAggregator
             var driveService = ServiceFactory.GetDriveService(credential);
             var sheetsService = ServiceFactory.GetSheetsService(credential);
 
-            var allFiles = Repository.GetFiles(driveService, MeasurementsFolderId);
-            var inputFiles = allFiles.Where(f => !f.Name.StartsWith(SummaryFilePrefix)).ToList();
+            var files = Repository.GetFiles(driveService, MeasurementsFolderId);
 
-            var data = Processor.AggregateData(sheetsService, inputFiles);
+            var data = Repository.ReadAllSheets(sheetsService, files);
             Processor.NormalizeDates(data);
             var measurementAverages = Processor.CalculateAverages(data).ToList();
 

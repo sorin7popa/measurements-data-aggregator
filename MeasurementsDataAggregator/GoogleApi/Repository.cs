@@ -1,32 +1,72 @@
 ﻿using Google.Apis.Drive.v3;
 using Google.Apis.Drive.v3.Data;
+using Google.Apis.Sheets.v4;
+using MeasurementsDataAggregator.DataProcessing;
 using MeasurementsDataAggregator.Model;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 
 namespace MeasurementsDataAggregator.GoogleApi
 {
-    class Repository
+    internal class Repository
     {
+        private readonly SpreadsheetParser _spreadsheetParser;
         private readonly string _summaryFilePrefix;
 
-        public Repository(string summaryFilePrefix)
+        public Repository(SpreadsheetParser spreadsheetParser, string summaryFilePrefix)
         {
+            _spreadsheetParser = spreadsheetParser;
             _summaryFilePrefix = summaryFilePrefix;
         }
 
-        public IList<File> GetFiles(DriveService driveService, string folderId)
+        public List<File> GetFiles(DriveService driveService, string folderId)
         {
-            FilesResource.ListRequest listRequest = driveService.Files.List();
+            var listRequest = driveService.Files.List();
             listRequest.Q = $"'{folderId}' in parents";
             listRequest.PageSize = 1000;
             listRequest.Fields = "nextPageToken, files(id, name)";
 
-            IList<File> files = listRequest.Execute()
-                .Files;
+            var files = listRequest.Execute().Files.ToList();
             return files;
+        }
+
+        public List<Measurement> ReadAllSheets(SheetsService sheetsService, List<File> inputFiles)
+        {
+            var measurements = new List<Measurement>();
+            for (var i = 0; i < inputFiles.Count; i++)
+            {
+                var file = inputFiles[i];
+                var sheetData = ReadSheetData(sheetsService, file);
+                var parsedRecords = _spreadsheetParser.Parse(sheetData, file.Name).ToList();
+                Console.WriteLine(
+                    $"Succesfully parsed {parsedRecords.Count} measurements from file '{file.Name}' (file {i + 1} of {inputFiles.Count})");
+                measurements.AddRange(parsedRecords);
+            }
+
+            return measurements;
+        }
+
+        private IList<IList<object>> ReadSheetData(SheetsService sheetsService, File file)
+        {
+            Thread.Sleep(1000);
+            const string range = "A8:H";
+            var request = sheetsService.Spreadsheets.Values.Get(file.Id, range);
+            try
+            {
+                var response = request.Execute();
+                var values = response.Values;
+                return values;
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Exception reading range {range} in file {file.Name}\n{e}");
+                Console.ForegroundColor = ConsoleColor.Gray;
+                return new List<IList<object>>();
+            }
         }
 
         public void WriteData(List<MeasurementAverage> measurementAverages)

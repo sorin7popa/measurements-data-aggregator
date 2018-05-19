@@ -83,7 +83,7 @@
     <Compile Include="Model\Measurement.cs" />
     <Compile Include="Model\MeasurementAverage.cs" />
     <Compile Include="DataProcessing\Processor.cs" />
-    <Compile Include="DataProcessing\SpreadsheetReader.cs" />
+    <Compile Include="DataProcessing\SpreadsheetParser.cs" />
     <Compile Include="GoogleApi\AuthorizationProvider.cs" />
     <Compile Include="GoogleApi\Repository.cs" />
     <Compile Include="Program.cs" />
